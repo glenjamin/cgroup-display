@@ -10,7 +10,7 @@ jobs:
   info:
     resource_class: medium
     docker:
-      - image: circleci/nodejs
+      - image: circleci/node
     steps:
       - run: cat /sys/fs/cgroup/memory/memory.limit_in_bytes
       - run: sleep 300
