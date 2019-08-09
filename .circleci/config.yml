@@ -10,7 +10,9 @@ jobs:
   info:
     resource_class: medium
     docker:
-      - image: circleci/node
+      - image: circleci/openjdk:8-jdk
     steps:
-      - run: cat /sys/fs/cgroup/memory/memory.limit_in_bytes
+      - run: |
+          cat /sys/fs/cgroup/memory/memory.limit_in_bytes
+          cat /sys/fs/cgroup/cpu/cpu.shares
       - run: sleep 300
