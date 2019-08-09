@@ -8,7 +8,7 @@ workflows:
       
 jobs:
   info:
-    resource_class: small
+    resource_class: xlarge
     docker:
       - image: circleci/openjdk:8-jdk
     steps:
