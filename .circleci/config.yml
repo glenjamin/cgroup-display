@@ -3,12 +3,78 @@ version: 2.1
 workflows:
   stuff:
     jobs:
+      - features
+      - features-attach-workspace:
+          requires:
+            - features
       - circleci-runner-features
       - circleci-runner-features-attach-workspace:
           requires:
             - circleci-runner-features
 
 jobs:
+  features:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      # Verify checkout
+      - checkout
+      - run:
+          name: Verify checkout
+          command: |
+            [ "$(cat checksum.txt)" == '8155deaaffce2672f8310b2be24241fb09326976' ]
+      - run: mkdir -p /tmp/depcache; echo 'my cached file' > /tmp/depcache/cached.txt
+      - save_cache:
+          key: depcache-v1-{{ .BuildNum }}
+          paths:
+            - /tmp/depcache
+      - run: rm -r /tmp/depcache
+      - restore_cache:
+          key: depcache-v1-{{ .BuildNum }}
+      - run:
+          name: Verify cache
+          command: |
+            [ "$(cat /tmp/depcache/cached.txt)" == 'my cached file' ]
+      # upload test results!
+      - store_test_results:
+          path: test-results
+
+      # upload artifacts!
+      - run:
+          name: Creating Dummy Artifacts
+          command: |
+            echo "my artifact file" > /tmp/artifact-1.txt;
+            mkdir -p /tmp/artifacts;
+            echo "my artifact files in a dir" > /tmp/artifacts/artifact-2.txt;
+      - store_artifacts:
+          path: /tmp/artifact-1.txt
+          destination: artifact-file.txt
+      - store_artifacts:
+          path: /tmp/artifacts
+
+      # Persist a workspace
+      - run: |
+          echo "workspace" > workspace.txt
+      - persist_to_workspace:
+          root: .
+          paths:
+            - workspace.txt
+
+  features-attach-workspace:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - run:
+          name: Clean any existing
+          command: |
+            rm -rf ~/attached-workspace
+      - attach_workspace:
+          at: ~/attached-workspace
+      - run:
+          name: Verify Workspace Roundtrip
+          command: |
+            [ "$(cat ~/attached-workspace/workspace.txt)" == 'workspace' ]
+
   circleci-runner-features:
     machine: true
     resource_class: glenjamin/runner
