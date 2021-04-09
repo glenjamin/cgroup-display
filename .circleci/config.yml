@@ -1,18 +1,77 @@
-version: 2
+version: 2.1
 
 workflows:
-  version: 2
   stuff:
     jobs:
-      - info
-      
+      - circleci-runner-features
+      - circleci-runner-features-attach-workspace:
+          requires:
+            - circleci-runner-features
+
 jobs:
-  info:
-    resource_class: massive
-    docker:
-      - image: circleci/openjdk:8-jdk
+  circleci-runner-features:
+    machine: true
+    resource_class: glenjamin/runner
     steps:
+      - run:
+          name: Clear working directory
+          command: |
+            rm -rf $CIRCLE_WORKING_DIRECTORY
+            mkdir $CIRCLE_WORKING_DIRECTORY
+      # Verify checkout
+      - checkout
+      - run:
+          name: Verify checkout
+          command: |
+            [ "$(cat checksum.txt)" == '8155deaaffce2672f8310b2be24241fb09326976' ]
+      - run: mkdir -p /tmp/depcache; echo 'my cached file' > /tmp/depcache/cached.txt
+      - save_cache:
+          key: depcache-v1-{{ .BuildNum }}
+          paths:
+            - /tmp/depcache
+      - run: rm -r /tmp/depcache
+      - restore_cache:
+          key: depcache-v1-{{ .BuildNum }}
+      - run:
+          name: Verify cache
+          command: |
+            [ "$(cat /tmp/depcache/cached.txt)" == 'my cached file' ]
+      # upload test results!
+      - store_test_results:
+          path: test-results
+
+      # upload artifacts!
+      - run:
+          name: Creating Dummy Artifacts
+          command: |
+            echo "my artifact file" > /tmp/artifact-1.txt;
+            mkdir -p /tmp/artifacts;
+            echo "my artifact files in a dir" > /tmp/artifacts/artifact-2.txt;
+      - store_artifacts:
+          path: /tmp/artifact-1.txt
+          destination: artifact-file.txt
+      - store_artifacts:
+          path: /tmp/artifacts
+
+      # Persist a workspace
       - run: |
-          cat /sys/fs/cgroup/memory/memory.limit_in_bytes
-          cat /sys/fs/cgroup/cpu/cpu.shares
-      - run: sleep 300
+          echo "workspace" > workspace.txt
+      - persist_to_workspace:
+          root: .
+          paths:
+            - workspace.txt
+
+  circleci-runner-features-attach-workspace:
+    machine: true
+    resource_class: glenjamin/runner
+    steps:
+      - run:
+          name: Clean any existing
+          command: |
+            rm -rf ~/attached-workspace
+      - attach_workspace:
+          at: ~/attached-workspace
+      - run:
+          name: Verify Workspace Roundtrip
+          command: |
+            [ "$(cat ~/attached-workspace/workspace.txt)" == 'workspace' ]
